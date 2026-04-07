@@ -1,0 +1,434 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pro Bilimsel Hesap Makinesi</title>
+
+    <style>
+      body {
+        background: #1b1b1b;
+        font-family: Arial;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        gap: 20px;
+      }
+
+      .hesapmakinasi {
+        background: #2d2d2d;
+        padding: 20px;
+        border-radius: 15px;
+        width: 360px;
+        box-shadow: 0 0 25px black;
+      }
+
+      #displayContainer {
+        background: white;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        min-height: 60px;
+        text-align: right;
+        font-size: 22px;
+        word-wrap: break-word;
+      }
+
+      .mode {
+        color: white;
+        text-align: right;
+        margin-bottom: 5px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .buttons {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+
+      button {
+        padding: 15px;
+        font-size: 15px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      .operator {
+        background: #ff9500;
+        color: white;
+      }
+      .equal {
+        background: #28a745;
+        color: white;
+      }
+      .clear {
+        background: #dc3545;
+        color: white;
+      }
+      .func {
+        background: #444;
+        color: white;
+      }
+      .memory {
+        background: #007bff;
+        color: white;
+      }
+
+      .history {
+        width: 250px;
+        background: #111;
+        color: white;
+        padding: 10px;
+        border-radius: 10px;
+        height: 500px;
+        overflow: auto;
+        font-size: 14px;
+        position: relative;
+
+      }
+      .history h3 {
+        margin-top: 0;
+      }
+      .history div {
+        margin-bottom: 8px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 5px;
+        cursor: pointer;
+      }
+      sup {
+        font-size: 12px;
+      }
+      .temizle{
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+        position: absolute;
+        left: 0;
+        bottom: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="hesapmakinasi">
+      <div class="mode" onclick="toggleMode()" id="modeLabel">MODE: RAD</div>
+
+      <div id="displayContainer"></div>
+
+      <div class="buttons">
+        <button class="memory" onclick="memoryAdd()">M+</button>
+        <button class="memory" onclick="memoryRecall()">MR</button>
+        <button class="memory" onclick="memoryClear()">MC</button>
+        <button class="clear" onclick="clearDisplay()">C</button>
+
+        <button onclick="add('(')">(</button>
+        <button onclick="add(')')">)</button>
+        <button onclick="add('^')">^</button>
+        <button class="operator" onclick="add('/')">÷</button>
+
+        <button onclick="add('7')">7</button>
+        <button onclick="add('8')">8</button>
+        <button onclick="add('9')">9</button>
+        <button class="operator" onclick="add('*')">×</button>
+
+        <button onclick="add('4')">4</button>
+        <button onclick="add('5')">5</button>
+        <button onclick="add('6')">6</button>
+        <button class="operator" onclick="add('-')">-</button>
+
+        <button onclick="add('1')">1</button>
+        <button onclick="add('2')">2</button>
+        <button onclick="add('3')">3</button>
+        <button class="operator" onclick="add('+')">+</button>
+
+        <button onclick="add('0')">0</button>
+        <button onclick="add(',')">,</button>
+        <button class="equal" onclick="calculate()">=</button>
+        <button class="func" onclick="addFunction('sin')">sin</button>
+
+        <button class="func" onclick="addFunction('cos')">cos</button>
+        <button class="func" onclick="addFunction('tan')">tan</button>
+        <button class="func" onclick="addFunction('sqrt')">√</button>
+      </div>
+    </div>
+
+    <div class="history">
+      <h3>History</h3>
+      <div id="historyList"></div>
+     <div class="temizle"><button onclick="historySil()">Temizle</button></div> 
+    </div>
+
+    <script>
+      let expression = "";
+      let memory = 0;
+      let dereceMi = false;
+      //Burada derece radyan dönüşümü dereceMi değeri true/false oluyor yazı değişiyor 
+      function toggleMode() {
+        dereceMi = !dereceMi;
+        document.getElementById("modeLabel").innerText =
+          "MODE: " + (dereceMi ? "DEG" : "RAD");
+      }
+    //görüntü güncelleyici fonksiyon
+      function updateDisplay() {
+        let formatted = expression
+          .replace(/\^(\d+)/g, "<sup>$1</sup>")//üst varsa küçük olarak üste yazılır
+          .replace(/\^\(([^)]+)\)/g, "<sup>($1)</sup>");//üst varsa ve parantezli ise küçültüp üste yazılır
+        document.getElementById("displayContainer").innerHTML = formatted;//Görüntü günceller
+      }
+      //Türkçedeki virgülü hesap için noktaya çevirir
+      function add(val) {
+        if (val === ",") val = ".";
+        expression += val;
+        updateDisplay();
+      }
+      //sin,cos,tan karekök göster
+      function addFunction(name) {
+        expression += name + "(";
+        updateDisplay();
+      }
+      //ekranı temizle
+      function clearDisplay() {
+        expression = "";
+        updateDisplay();
+      }
+      //M hafızasına ekler
+      function memoryAdd() {
+        let result = calculate(true);
+        if (result !== null) memory += result;
+      }
+      //M hafızasını ekrana getirir
+      function memoryRecall() {
+        expression += memory;
+        updateDisplay();
+      }
+      //M hafızasını temizler
+      function memoryClear() {
+        memory = 0;
+      }
+      //Açılan parantez sayısı ve kapanan parantez sayısı eşit mi?
+      function parantezHatasiVarmi(expr) {
+        let count = 0;
+        for (let ch of expr) {
+          if (ch === "(") count++;
+          if (ch === ")") count--;
+          if (count < 0) return false;
+        }
+        return count === 0;
+      }
+      //Girilen açının derece değerini radyana çevirir
+      function toRadians(val) {
+        //derecemiTrue ise derceyi radyana çevirir
+        return dereceMi ? (val * Math.PI) / 180 : val;
+      }
+
+      const functions = {
+        //texten girilen matamatik fonksiyonu gerçek matamatik kütüphanesinden çağrılıyor
+        sin: (x) => Math.sin(toRadians(x)),
+        cos: (x) => Math.cos(toRadians(x)),
+        tan: (x) => Math.tan(toRadians(x)),
+        sqrt: Math.sqrt,
+      };
+
+      const oncelik = { "+": 1, "-": 1, "*": 2, "/": 2, "^": 3 }; //işlem önceliği yüksek olan önce çözülecek
+      //======================================================
+      //Hesabın ilk fonksiyonu tüm değer ve operatörlei bir 
+      // diziye sırasız alır
+      //======================================================      
+      function tokenize(expr) {
+        //Bu fonksiyon  girilen değeri sayı, operatör,sayı .... şeklinde diziye alıyor
+        const tokens = [];
+        let buffer = "";
+
+        for (let i = 0; i < expr.length; i++) {
+          let ch = expr[i];
+          let prev = expr[i - 1];
+
+          // Sayı veya nokta
+          if (/[0-9.]/.test(ch)) {
+            buffer += ch;
+          }
+          // eksi sayı kontrolü
+          else if (ch === "-" && (i === 0 || prev === "(" || prev in oncelik)) {
+            buffer += "-";
+          }
+          // Harf (fonksiyon) sin cos gibi
+          else if (/[a-z]/i.test(ch)) {
+            buffer += ch;
+          } else {
+            if (buffer) {
+              tokens.push(buffer);
+              buffer = "";
+            }
+            tokens.push(ch);
+          }
+        }
+
+        if (buffer) tokens.push(buffer);
+
+        return tokens;
+      }
+      //======================================================
+      //Hesabın ikinci fonksiyonu parantezleri de açarak 
+      // öncelik sırasına göre dizilim yapar
+      //======================================================      
+
+      function toPostfix(tokens) {
+        //Bu fonksiyon parantezleri açarak işlemleri bufera alır FIFO mantığında
+        // sayi1,oparatör1,sayi2, ..... şeklinde öncelik sıralamasıda bu aşamada yapılır
+        // parantezler yok edileir
+        const output = [];
+        const ops = [];
+
+        for (let token of tokens) {
+          if (!isNaN(token)) {
+            output.push(token);
+          } else if (functions[token]) {
+            ops.push(token);
+          } else if (token in oncelik) {
+            while (
+              ops.length &&
+              ((ops[ops.length - 1] in oncelik &&
+                (oncelik[ops[ops.length - 1]] > oncelik[token] ||
+                  (oncelik[ops[ops.length - 1]] === oncelik[token] &&
+                    token !== "^"))) ||
+                functions[ops[ops.length - 1]])
+            ) {
+              output.push(ops.pop());
+            }
+            ops.push(token);
+          } else if (token === "(") {
+            ops.push(token);
+          } else if (token === ")") {
+            while (ops.length && ops[ops.length - 1] !== "(") {
+              output.push(ops.pop());
+            }
+            ops.pop();
+            if (ops.length && functions[ops[ops.length - 1]]) {
+              output.push(ops.pop());
+            }
+          }
+        }
+
+        while (ops.length) {
+          output.push(ops.pop());
+        }
+
+        return output;
+      }
+      //======================================================
+      //Üçüncü fonksiyonu sıraya alınan değer ve işlemleri 
+      //Hesaplar 
+      //======================================================      
+
+      function evalPostfix(postfix) {
+        //token stack' ına sırayla ilk ve ikinci sayı alınır,
+        //sonra operatör çekilir sonuç stacke push ile saklanır,
+        //bu aşamada verilerin b,a, operatör olması beklenir sadece b varsa o direk sonuç
+        //Burada 0 bölme hatası eklenebilir
+        const stack = [];
+        for (let token of postfix) {
+          if (!isNaN(token)) {
+            stack.push(parseFloat(token));
+          } else if (functions[token]) {
+            stack.push(functions[token](stack.pop()));
+          } else {
+            let b = stack.pop();
+            let a = stack.pop();
+            switch (token) {
+              case "+":
+                stack.push(a + b);
+                break;
+              case "-":
+                stack.push(a - b);
+                break;
+              case "*":
+                stack.push(a * b);
+
+                break;
+              case "/":
+                if (b === 0) {
+                  return "Sıfıra bölme hatası!";
+                } else {
+                  stack.push(a / b);
+                }
+                break;
+              case "^":
+                stack.push(Math.pow(a, b));
+                break;
+            }
+          }
+        }
+        return stack[0];
+      }
+//Hesabı yönetir
+      function calculate(returnOnly = false) {
+        try {
+          if (!expression) return null;
+          if (!parantezHatasiVarmi(expression)) throw "HATA";
+
+          const tokens = tokenize(expression);
+          const postfix = toPostfix(tokens);
+          const result = evalPostfix(postfix);
+
+          if (!returnOnly) {
+            addHistory(expression, result);
+            expression = result.toString();
+            updateDisplay();
+          }
+
+          return result;
+        } catch {
+          if (!returnOnly) {
+            expression = "HATA";
+            updateDisplay();
+          }
+          return null;
+        }
+      }
+
+      function addHistory(expr, result) {
+        const div = document.createElement("div");
+        div.innerHTML = expr + " = " + result;
+        div.onclick = function () {
+          expression = result.toString();
+          updateDisplay();
+        };
+        document.getElementById("historyList").prepend(div);
+      }
+     //===============================================
+     //Klavyeden gelen değerleri algılama
+     //===============================================
+      document.addEventListener("keydown", function (e) {
+        const key = e.key;
+
+        if ((key >= "0" && key <= "9") || "+-*/().^".includes(key)) {
+          add(key);
+        } else if (key === ",") {
+          add(",");
+        } else if (key === "Enter") {
+          e.preventDefault();
+          calculate();
+        } else if (key === "Backspace") {
+          expression = expression.slice(0, -1);
+          updateDisplay();
+        } else if (key === "Escape") {
+          clearDisplay();
+        }else if(key==="c"||key==="C")
+        {
+          historySil();
+        }
+      });
+      function historySil()
+      {
+          document.getElementById("historyList").innerHTML="";
+      }
+      
+      updateDisplay();
+
+    </script>
+  </body>
+</html>
