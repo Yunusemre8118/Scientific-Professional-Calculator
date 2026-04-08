@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Pro Bilimsel Hesap Makinesi</title>
+    <title>Pro Scientific Calculator</title>
 
     <style>
       body {
@@ -15,7 +15,7 @@
         gap: 20px;
       }
 
-      .hesapmakinasi {
+      .calculator {
         background: #2d2d2d;
         padding: 20px;
         border-radius: 15px;
@@ -101,7 +101,7 @@
       sup {
         font-size: 12px;
       }
-      .temizle{
+      .clearHistory{
         width: 100%;
         display: flex;
         flex-direction: column;
@@ -114,7 +114,7 @@
   </head>
 
   <body>
-    <div class="hesapmakinasi">
+    <div class="calculator">
       <div class="mode" onclick="toggleMode()" id="modeLabel">MODE: RAD</div>
 
       <div id="displayContainer"></div>
@@ -159,58 +159,65 @@
     <div class="history">
       <h3>History</h3>
       <div id="historyList"></div>
-     <div class="temizle"><button onclick="historySil()">Temizle</button></div> 
+      <div class="clearHistory"><button onclick="clearHistory()">Clear</button></div> 
     </div>
 
     <script>
       let expression = "";
       let memory = 0;
-      let dereceMi = false;
-      //Burada derece radyan dönüşümü dereceMi değeri true/false oluyor yazı değişiyor 
+      let isDegree = false;
+
+      // Toggle between degree and radian
       function toggleMode() {
-        dereceMi = !dereceMi;
+        isDegree = !isDegree;
         document.getElementById("modeLabel").innerText =
-          "MODE: " + (dereceMi ? "DEG" : "RAD");
+          "MODE: " + (isDegree ? "DEG" : "RAD");
       }
-    //görüntü güncelleyici fonksiyon
+
+      // Update display
       function updateDisplay() {
         let formatted = expression
-          .replace(/\^(\d+)/g, "<sup>$1</sup>")//üst varsa küçük olarak üste yazılır
-          .replace(/\^\(([^)]+)\)/g, "<sup>($1)</sup>");//üst varsa ve parantezli ise küçültüp üste yazılır
-        document.getElementById("displayContainer").innerHTML = formatted;//Görüntü günceller
+          .replace(/\^(\d+)/g, "<sup>$1</sup>")
+          .replace(/\^\(([^)]+)\)/g, "<sup>($1)</sup>");
+        document.getElementById("displayContainer").innerHTML = formatted;
       }
-      //Türkçedeki virgülü hesap için noktaya çevirir
+
+      // Add number/operator
       function add(val) {
         if (val === ",") val = ".";
         expression += val;
         updateDisplay();
       }
-      //sin,cos,tan karekök göster
+
+      // Add function like sin, cos, tan, sqrt
       function addFunction(name) {
         expression += name + "(";
         updateDisplay();
       }
-      //ekranı temizle
+
+      // Clear display
       function clearDisplay() {
         expression = "";
         updateDisplay();
       }
-      //M hafızasına ekler
+
+      // Memory functions
       function memoryAdd() {
         let result = calculate(true);
         if (result !== null) memory += result;
       }
-      //M hafızasını ekrana getirir
+
       function memoryRecall() {
         expression += memory;
         updateDisplay();
       }
-      //M hafızasını temizler
+
       function memoryClear() {
         memory = 0;
       }
-      //Açılan parantez sayısı ve kapanan parantez sayısı eşit mi?
-      function parantezHatasiVarmi(expr) {
+
+      // Check parentheses balance
+      function hasParenthesisError(expr) {
         let count = 0;
         for (let ch of expr) {
           if (ch === "(") count++;
@@ -219,27 +226,23 @@
         }
         return count === 0;
       }
-      //Girilen açının derece değerini radyana çevirir
+
+      // Convert degree to radians if needed
       function toRadians(val) {
-        //derecemiTrue ise derceyi radyana çevirir
-        return dereceMi ? (val * Math.PI) / 180 : val;
+        return isDegree ? (val * Math.PI) / 180 : val;
       }
 
       const functions = {
-        //texten girilen matamatik fonksiyonu gerçek matamatik kütüphanesinden çağrılıyor
         sin: (x) => Math.sin(toRadians(x)),
         cos: (x) => Math.cos(toRadians(x)),
         tan: (x) => Math.tan(toRadians(x)),
         sqrt: Math.sqrt,
       };
 
-      const oncelik = { "+": 1, "-": 1, "*": 2, "/": 2, "^": 3 }; //işlem önceliği yüksek olan önce çözülecek
-      //======================================================
-      //Hesabın ilk fonksiyonu tüm değer ve operatörlei bir 
-      // diziye sırasız alır
-      //======================================================      
+      const precedence = { "+": 1, "-": 1, "*": 2, "/": 2, "^": 3 };
+
+      // Tokenize expression
       function tokenize(expr) {
-        //Bu fonksiyon  girilen değeri sayı, operatör,sayı .... şeklinde diziye alıyor
         const tokens = [];
         let buffer = "";
 
@@ -247,16 +250,11 @@
           let ch = expr[i];
           let prev = expr[i - 1];
 
-          // Sayı veya nokta
           if (/[0-9.]/.test(ch)) {
             buffer += ch;
-          }
-          // eksi sayı kontrolü
-          else if (ch === "-" && (i === 0 || prev === "(" || prev in oncelik)) {
+          } else if (ch === "-" && (i === 0 || prev === "(" || prev in precedence)) {
             buffer += "-";
-          }
-          // Harf (fonksiyon) sin cos gibi
-          else if (/[a-z]/i.test(ch)) {
+          } else if (/[a-z]/i.test(ch)) {
             buffer += ch;
           } else {
             if (buffer) {
@@ -271,15 +269,9 @@
 
         return tokens;
       }
-      //======================================================
-      //Hesabın ikinci fonksiyonu parantezleri de açarak 
-      // öncelik sırasına göre dizilim yapar
-      //======================================================      
 
+      // Convert to postfix notation
       function toPostfix(tokens) {
-        //Bu fonksiyon parantezleri açarak işlemleri bufera alır FIFO mantığında
-        // sayi1,oparatör1,sayi2, ..... şeklinde öncelik sıralamasıda bu aşamada yapılır
-        // parantezler yok edileir
         const output = [];
         const ops = [];
 
@@ -288,12 +280,12 @@
             output.push(token);
           } else if (functions[token]) {
             ops.push(token);
-          } else if (token in oncelik) {
+          } else if (token in precedence) {
             while (
               ops.length &&
-              ((ops[ops.length - 1] in oncelik &&
-                (oncelik[ops[ops.length - 1]] > oncelik[token] ||
-                  (oncelik[ops[ops.length - 1]] === oncelik[token] &&
+              ((ops[ops.length - 1] in precedence &&
+                (precedence[ops[ops.length - 1]] > precedence[token] ||
+                  (precedence[ops[ops.length - 1]] === precedence[token] &&
                     token !== "^"))) ||
                 functions[ops[ops.length - 1]])
             ) {
@@ -319,16 +311,9 @@
 
         return output;
       }
-      //======================================================
-      //Üçüncü fonksiyonu sıraya alınan değer ve işlemleri 
-      //Hesaplar 
-      //======================================================      
 
+      // Evaluate postfix expression
       function evalPostfix(postfix) {
-        //token stack' ına sırayla ilk ve ikinci sayı alınır,
-        //sonra operatör çekilir sonuç stacke push ile saklanır,
-        //bu aşamada verilerin b,a, operatör olması beklenir sadece b varsa o direk sonuç
-        //Burada 0 bölme hatası eklenebilir
         const stack = [];
         for (let token of postfix) {
           if (!isNaN(token)) {
@@ -339,36 +324,24 @@
             let b = stack.pop();
             let a = stack.pop();
             switch (token) {
-              case "+":
-                stack.push(a + b);
-                break;
-              case "-":
-                stack.push(a - b);
-                break;
-              case "*":
-                stack.push(a * b);
-
-                break;
+              case "+": stack.push(a + b); break;
+              case "-": stack.push(a - b); break;
+              case "*": stack.push(a * b); break;
               case "/":
-                if (b === 0) {
-                  return "Sıfıra bölme hatası!";
-                } else {
-                  stack.push(a / b);
-                }
-                break;
-              case "^":
-                stack.push(Math.pow(a, b));
-                break;
+                if (b === 0) return "Division by zero!";
+                stack.push(a / b); break;
+              case "^": stack.push(Math.pow(a, b)); break;
             }
           }
         }
         return stack[0];
       }
-//Hesabı yönetir
+
+      // Main calculate function
       function calculate(returnOnly = false) {
         try {
           if (!expression) return null;
-          if (!parantezHatasiVarmi(expression)) throw "HATA";
+          if (!hasParenthesisError(expression)) throw "ERROR";
 
           const tokens = tokenize(expression);
           const postfix = toPostfix(tokens);
@@ -383,7 +356,7 @@
           return result;
         } catch {
           if (!returnOnly) {
-            expression = "HATA";
+            expression = "ERROR";
             updateDisplay();
           }
           return null;
@@ -399,9 +372,8 @@
         };
         document.getElementById("historyList").prepend(div);
       }
-     //===============================================
-     //Klavyeden gelen değerleri algılama
-     //===============================================
+
+      // Keyboard input handling
       document.addEventListener("keydown", function (e) {
         const key = e.key;
 
@@ -417,16 +389,15 @@
           updateDisplay();
         } else if (key === "Escape") {
           clearDisplay();
-        }else if(key==="c"||key==="C")
-        {
-          historySil();
+        } else if (key === "c" || key === "C") {
+          clearHistory();
         }
       });
-      function historySil()
-      {
-          document.getElementById("historyList").innerHTML="";
+
+      function clearHistory() {
+        document.getElementById("historyList").innerHTML = "";
       }
-      
+
       updateDisplay();
 
     </script>
